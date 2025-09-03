@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Odds (Linhas)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: white;
+        }
+        .calculator {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 420px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .input-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-field {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+        }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1>Calculadora de Odds (Linhas)</h1>
+
+        <div class="input-group">
+            <label class="input-label">Linha 1</label>
+            <input type="text" id="linha1" class="input-field" placeholder="Ex: +14">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Odd 1</label>
+            <input type="text" id="odd1" class="input-field" placeholder="Ex: 1.543">
+        </div>
+
+        <div class="input-group">
+            <label class="input-label">Linha 2</label>
+            <input type="text" id="linha2" class="input-field" placeholder="Ex: -14">
+        </div>
+        <div class="input-group">
+            <label class="input-label">Odd 2</label>
+            <input type="text" id="odd2" class="input-field" placeholder="Ex: 2.20">
+        </div>
+
+        <div class="input-group">
+            <label class="input-label">Nova Linha</label>
+            <input type="text" id="novaLinha" class="input-field" placeholder="Ex: +14.5">
+        </div>
+
+        <button class="btn" onclick="calcularOdd()">Calcular Odd</button>
+
+        <div class="result" id="resultado"></div>
+    </div>
+
+    <script>
+        // Funções estatísticas básicas (aproximação normal)
+        function norm_cdf(x) {
+            return (1.0 + Math.erf(x / Math.sqrt(2.0))) / 2.0;
+        }
+
+        function norm_ppf(p) {
+            // aproximação rápida do inverso CDF normal
+            if (p <= 0 || p >= 1) throw new Error("p inválido");
+            const a1 = -39.6968302866538,
+                  a2 = 220.946098424521,
+                  a3 = -275.928510446969,
+                  a4 = 138.357751867269,
+                  a5 = -30.6647980661472,
+                  a6 = 2.50662827745924;
+
+            const b1 = -54.4760987982241,
+                  b2 = 161.585836858041,
+                  b3 = -155.698979859887,
+                  b4 = 66.8013118877197,
+                  b5 = -13.2806815528857;
+
+            const c1 = -0.00778489400243029,
+                  c2 = -0.322396458041136,
+                  c3 = -2.40075827716184,
+                  c4 = -2.54973253934373,
+                  c5 = 4.37466414146497,
+                  c6 = 2.93816398269878;
+
+            const d1 = 0.00778469570904146,
+                  d2 = 0.32246712907004,
+                  d3 = 2.445134137143,
+                  d4 = 3.75440866190742;
+
+            let q, r;
+            if (p < 0.02425) {
+                q = Math.sqrt(-2 * Math.log(p));
+                return (((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+                       ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+            } else if (p > 1 - 0.02425) {
+                q = Math.sqrt(-2 * Math.log(1 - p));
+                return -(((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+                         ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+            } else {
+                q = p - 0.5;
+                r = q * q;
+                return (((((a1*r+a2)*r+a3)*r+a4)*r+a5)*r+a6)*q /
+                       (((((b1*r+b2)*r+b3)*r+b4)*r+b5)*r+1);
+            }
+        }
+
+        function calcularOdd() {
+            try {
+                let linha1 = parseFloat(document.getElementById("linha1").value);
+                let odd1 = parseFloat(document.getElementById("odd1").value);
+                let linha2 = parseFloat(document.getElementById("linha2").value);
+                let odd2 = parseFloat(document.getElementById("odd2").value);
+                let novaLinha = parseFloat(document.getElementById("novaLinha").value);
+
+                if ([linha1, odd1, linha2, odd2, novaLinha].some(isNaN)) {
+                    throw new Error("Preencha todos os campos corretamente!");
+                }
+
+                // Converter odds em probabilidade
+                let p1 = 1 / odd1;
+                let p2 = 1 / odd2;
+
+                p1 = Math.min(Math.max(p1, 0.0001), 0.9999);
+                p2 = Math.min(Math.max(p2, 0.0001), 0.9999);
+
+                // Prob → z-score
+                let z1 = norm_ppf(p1);
+                let z2 = norm_ppf(p2);
+
+                // Calcular média e desvio
+                let media = (linha1 * z2 - linha2 * z1) / (z2 - z1);
+                let desvio = (linha2 - linha1) / (z2 - z1);
+
+                // Nova probabilidade
+                let z_new = (novaLinha - media) / desvio;
+                let p_new = norm_cdf(z_new);
+
+                let oddNova = 1 / p_new;
+
+                document.getElementById("resultado").innerText =
+                    `Odd estimada para ${novaLinha}: ${oddNova.toFixed(3)}`;
+
+            } catch (e) {
+                document.getElementById("resultado").innerText = "Erro: " + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
